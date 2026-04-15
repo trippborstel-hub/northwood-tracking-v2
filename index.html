@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Northwood Climate Tracker</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #232735; --border: #2e3345;
+    --text: #e2e4ea; --text-muted: #8b8fa3; --text-dim: #5a5e72;
+    --accent: #5bb8a4; --accent-dim: rgba(91,184,164,0.12);
+    --white: #fff;
+    --green: #4caf50; --green-dim: rgba(76,175,80,0.12);
+    --yellow: #e8a84c; --yellow-dim: rgba(232,168,76,0.12);
+    --red: #e85d5d; --red-dim: rgba(232,93,93,0.12);
+    --blue: #58a6ff; --blue-dim: rgba(88,166,255,0.12);
+    --scope1: #e8724c; --scope2: #58a6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 40px; border-bottom: 1px solid var(--border);
+  }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-size: 18px; font-weight: 700; color: var(--white); }
+  .logo span { color: var(--accent); }
+  .header-tag {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    padding: 3px 10px; border-radius: 4px;
+    background: var(--accent-dim); color: var(--accent);
+  }
+  .header-right { display: flex; align-items: center; gap: 16px; }
+  .quarter-select {
+    background: var(--surface); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 12px; border-radius: 6px; font-size: 13px; font-family: inherit; cursor: pointer;
+  }
+  .quarter-select:focus { outline: none; border-color: var(--accent); }
+
+  /* Nav */
+  .nav {
+    display: flex; gap: 4px; padding: 16px 40px 0;
+  }
+  .nav-btn {
+    padding: 10px 20px; border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 600;
+    color: var(--text-muted); border: 1px solid transparent; border-bottom: none;
+    cursor: pointer; background: none; font-family: inherit; transition: all 0.15s;
+  }
+  .nav-btn:hover { background: var(--surface); color: var(--text); }
+  .nav-btn.active { background: var(--surface); color: var(--accent); border-color: var(--border); }
+
+  /* Main content */
+  .main { padding: 0 40px 40px; }
+
+  /* Portfolio overview */
+  .portfolio-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 20px; }
+
+  .portco-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 24px; cursor: pointer; transition: all 0.2s;
+  }
+  .portco-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+  .portco-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .card-name { font-size: 15px; font-weight: 700; color: var(--white); }
+  .card-sector { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .card-fund {
+    font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+  }
+  .fund-i { background: var(--blue-dim); color: var(--blue); }
+  .fund-ii { background: var(--yellow-dim); color: var(--yellow); }
+
+  .card-kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card-kpi-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .card-kpi-value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  .card-kpi-var { font-size: 11px; margin-top: 1px; }
+
+  .rag-strip { display: flex; gap: 6px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .rag-dot {
+    width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  }
+  .rag-label { font-size: 11px; color: var(--text-muted); }
+
+  /* Detail view */
+  .detail-view { display: none; margin-top: 20px; }
+  .detail-view.active { display: block; }
+
+  .detail-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 24px;
+  }
+  .detail-title { font-size: 22px; font-weight: 700; color: var(--white); }
+  .detail-meta { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+  .back-btn {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
+    padding: 8px 16px; border-radius: 6px; font-size: 13px; font-family: inherit;
+    cursor: pointer; transition: all 0.15s;
+  }
+  .back-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* KPI grid */
+  .section-label {
+    font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 1px; margin: 24px 0 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .kpi-tile {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px;
+  }
+  .kpi-tile-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-tile-value { font-size: 24px; font-weight: 700; margin: 6px 0 4px; }
+  .kpi-tile-budget { font-size: 11px; color: var(--text-muted); }
+  .kpi-tile-var {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-top: 8px;
+  }
+
+  /* Variance bars */
+  .var-bar-wrap { margin-top: 10px; }
+  .var-bar-track {
+    width: 100%; height: 6px; background: var(--surface2); border-radius: 3px;
+    position: relative; overflow: hidden;
+  }
+  .var-bar-fill {
+    position: absolute; top: 0; height: 100%; border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+  .var-bar-labels { display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); margin-top: 4px; }
+
+  /* Trend sparkline (simple CSS) */
+  .trend { display: flex; align-items: flex-end; gap: 3px; height: 24px; margin-top: 8px; }
+  .trend-bar { width: 12px; border-radius: 2px 2px 0 0; transition: height 0.3s; }
+
+  /* Analyze button */
+  .analyze-section { margin-top: 32px; }
+  .analyze-btn {
+    background: var(--accent); color: var(--bg); border: none;
+    padding: 12px 28px; border-radius: 8px; font-size: 14px; font-weight: 700;
+    font-family: inherit; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .analyze-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+  .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .analyze-btn svg { width: 18px; height: 18px; }
+
+  .analysis-output {
+    margin-top: 16px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 24px; font-size: 14px; line-height: 1.7;
+    display: none;
+  }
+  .analysis-output.visible { display: block; }
+  .analysis-output h4 { color: var(--accent); font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .analysis-output p { margin-bottom: 10px; color: var(--text); }
+  .analysis-output .loading { color: var(--text-muted); font-style: italic; }
+
+  /* RAG colors */
+  .rag-green { color: var(--green); }
+  .rag-yellow { color: var(--yellow); }
+  .rag-red { color: var(--red); }
+  .bg-green { background: var(--green-dim); color: var(--green); }
+  .bg-yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .bg-red { background: var(--red-dim); color: var(--red); }
+  .dot-green { background: var(--green); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+  .fill-green { background: var(--green); }
+  .fill-yellow { background: var(--yellow); }
+  .fill-red { background: var(--red); }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .portfolio-grid { grid-template-columns: 1fr; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .header, .nav, .main { padding-left: 20px; padding-right: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">Northwood <span>Climate Tracker</span></div>
+    <div class="header-tag">Kith Climate</div>
+  </div>
+  <div class="header-right">
+    <select class="quarter-select" id="quarterSelect">
+      <option value="Q4-2025" selected>Q4 2025</option>
+      <option value="Q3-2025">Q3 2025</option>
+    </select>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" data-view="portfolio">Portfolio Overview</button>
+</div>
+
+<div class="main">
+  <!-- Portfolio view -->
+  <div id="portfolioView"></div>
+
+  <!-- Detail view -->
+  <div class="detail-view" id="detailView">
+    <div class="detail-header">
+      <div>
+        <div class="detail-title" id="detailTitle"></div>
+        <div class="detail-meta" id="detailMeta"></div>
+      </div>
+      <button class="back-btn" onclick="showPortfolio()">&larr; Portfolio</button>
+    </div>
+
+    <div class="section-label">Financial KPIs</div>
+    <div class="kpi-grid" id="financialKpis"></div>
+
+    <div class="section-label">Climate KPIs</div>
+    <div class="kpi-grid" id="climateKpis"></div>
+
+    <div class="analyze-section">
+      <button class="analyze-btn" id="analyzeBtn" onclick="runAnalysis()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
+        Analyze Variance
+      </button>
+      <div class="analysis-output" id="analysisOutput">
+        <h4>Variance Analysis</h4>
+        <div id="analysisContent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { PORTCOS, KPI_DEFS, QUARTERLY_DATA } from './data.js';
+  import { renderPortfolio, renderDetail, showPortfolio as showPort } from './dashboard.js';
+  import { analyze } from './agent.js';
+
+  // Make functions available globally
+  window.PORTCOS = PORTCOS;
+  window.KPI_DEFS = KPI_DEFS;
+  window.QUARTERLY_DATA = QUARTERLY_DATA;
+  window.currentQuarter = 'Q4-2025';
+  window.currentPortco = null;
+
+  // Quarter selector
+  document.getElementById('quarterSelect').addEventListener('change', (e) => {
+    window.currentQuarter = e.target.value;
+    if (window.currentPortco) {
+      renderDetail(window.currentPortco, window.currentQuarter);
+    } else {
+      renderPortfolio(window.currentQuarter);
+    }
+  });
+
+  // Navigation
+  window.showPortfolio = () => {
+    window.currentPortco = null;
+    document.getElementById('detailView').classList.remove('active');
+    document.getElementById('portfolioView').style.display = '';
+    document.getElementById('analysisOutput').classList.remove('visible');
+    renderPortfolio(window.currentQuarter);
+  };
+
+  window.showDetail = (slug) => {
+    window.currentPortco = slug;
+    document.getElementById('portfolioView').style.display = 'none';
+    document.getElementById('detailView').classList.add('active');
+    document.getElementById('analysisOutput').classList.remove('visible');
+    renderDetail(slug, window.currentQuarter);
+  };
+
+  window.runAnalysis = () => analyze(window.currentPortco, window.currentQuarter);
+
+  // Initial render
+  renderPortfolio(window.currentQuarter);
+</script>
+
+</body>
+</html>
