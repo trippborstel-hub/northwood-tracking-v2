@@ -37,9 +37,10 @@
     font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
     padding: 3px 10px; border-radius: 4px; background: var(--accent-dim); color: var(--accent);
   }
+  .header-right { font-size: 11px; color: var(--text-dim); }
 
   /* Main */
-  .main { padding: 24px 40px 48px; max-width: 1200px; margin: 0 auto; }
+  .main { padding: 24px 40px 48px; max-width: 1400px; margin: 0 auto; }
 
   /* Section labels */
   .section-label {
@@ -57,37 +58,47 @@
   .hero-value { font-size: 26px; font-weight: 700; margin: 4px 0 2px; }
   .hero-sub { font-size: 11px; color: var(--text-muted); }
 
-  /* Portco cards */
-  .portco-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  /* Portco cards — responsive grid for 10 companies */
+  .portco-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
   .portco-card {
     background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    padding: 20px; cursor: pointer; transition: all 0.2s;
+    padding: 16px 18px; cursor: pointer; transition: all 0.2s;
   }
   .portco-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px; }
-  .card-name { font-size: 14px; font-weight: 700; color: var(--white); }
-  .card-sector { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+  .card-name { font-size: 13px; font-weight: 700; color: var(--white); }
+  .card-sector { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
   .card-badge {
-    font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+    font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px; white-space: nowrap;
   }
   .badge-green { background: var(--green-dim); color: var(--green); }
   .badge-yellow { background: var(--yellow-dim); color: var(--yellow); }
   .badge-red { background: var(--red-dim); color: var(--red); }
 
-  .card-emissions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-  .card-metric-label { font-size: 10px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
-  .card-metric-value { font-size: 18px; font-weight: 700; margin-top: 2px; }
+  /* Compact metric row for cards */
+  .card-metrics-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px;
+  }
+  .card-metric { text-align: center; }
+  .card-metric .card-metric-label { font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.3px; }
+  .card-metric .card-metric-value { font-size: 16px; font-weight: 700; margin-top: 1px; }
   .scope1-color { color: var(--scope1); }
   .scope2-color { color: var(--scope2); }
 
-  .card-bar { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .card-bar-label { font-size: 10px; color: var(--text-dim); margin-bottom: 6px; display: flex; justify-content: space-between; }
-  .card-bar-track { width: 100%; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; display: flex; }
+  /* Risk pills on cards */
+  .card-risk-row { display: flex; gap: 6px; margin-bottom: 10px; }
+  .risk-pill {
+    font-size: 9px; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap;
+  }
+  .pill-green { background: var(--green-dim); color: var(--green); }
+  .pill-yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .pill-red { background: var(--red-dim); color: var(--red); }
+
+  .card-bar { padding-top: 10px; border-top: 1px solid var(--border); }
+  .card-bar-label { font-size: 9px; color: var(--text-dim); margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .card-bar-track { width: 100%; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; display: flex; }
   .card-bar-s1 { height: 100%; background: var(--scope1); }
   .card-bar-s2 { height: 100%; background: var(--scope2); }
-
-  .card-target { margin-top: 10px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
-  .card-target-dot { width: 6px; height: 6px; border-radius: 50%; }
 
   /* Gap chart container */
   .chart-panel {
@@ -103,13 +114,57 @@
   .detail-view.active { display: block; }
   .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
   .detail-title { font-size: 22px; font-weight: 700; color: var(--white); }
-  .detail-meta { font-size: 12px; color: var(--text-dim); margin-bottom: 20px; }
+  .detail-meta {
+    font-size: 12px; color: var(--text-dim); margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .grade-badge {
+    font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 4px;
+  }
+  .grade-a { background: var(--green-dim); color: var(--green); }
+  .grade-b { background: var(--yellow-dim); color: var(--yellow); }
+  .grade-c { background: var(--red-dim); color: var(--red); }
+  .grade-note { font-size: 10px; color: var(--text-dim); font-style: italic; }
+
   .back-btn {
     background: var(--surface); border: 1px solid var(--border); color: var(--text-muted);
     padding: 8px 16px; border-radius: 6px; font-size: 13px; font-family: inherit;
     cursor: pointer; transition: all 0.15s;
   }
   .back-btn:hover { border-color: var(--text-muted); color: var(--text); }
+
+  /* Risk + ESG panel */
+  .risk-esg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .risk-panel, .esg-panel {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px;
+  }
+  .risk-panel h4, .esg-panel h4 {
+    font-size: 12px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 14px;
+  }
+  .risk-summary-row { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+  .risk-summary-item { }
+  .risk-summary-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; }
+  .risk-detail-line { font-size: 11px; color: var(--text-dim); margin-top: 4px; line-height: 1.4; }
+
+  .vector-bars { display: flex; flex-direction: column; gap: 8px; }
+  .vector-bar-row { display: flex; align-items: center; gap: 8px; }
+  .vector-label { font-size: 10px; color: var(--text-muted); width: 100px; flex-shrink: 0; }
+  .vector-bar-track { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+  .vector-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .vector-score { font-size: 10px; color: var(--text-dim); width: 24px; text-align: right; }
+
+  .esg-composite { display: flex; align-items: baseline; gap: 10px; margin-bottom: 16px; }
+  .esg-composite-value { font-size: 36px; font-weight: 700; }
+  .esg-composite-label { font-size: 13px; color: var(--text-muted); }
+
+  .esg-dimension-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .esg-dim {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 6px 10px; background: var(--surface2); border-radius: 6px;
+  }
+  .esg-dim-label { font-size: 10px; color: var(--text-muted); }
+  .esg-dim-score { font-size: 14px; font-weight: 700; }
 
   /* Facility table */
   .tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
@@ -125,10 +180,10 @@
   .tbl .pct-bar { display: inline-block; height: 6px; border-radius: 3px; margin-right: 8px; vertical-align: middle; }
 
   /* Initiative tracker */
-  .init-list { display: flex; flex-direction: column; gap: 10px; }
+  .init-list { display: flex; flex-direction: column; gap: 8px; }
   .init-row {
     background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-    padding: 14px 18px; display: flex; align-items: center; gap: 14px;
+    padding: 12px 16px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   }
   .init-status {
     font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
@@ -137,9 +192,9 @@
   .status-complete { background: var(--green-dim); color: var(--green); }
   .status-in_progress { background: var(--yellow-dim); color: var(--yellow); }
   .status-planned { background: var(--surface2); color: var(--text-dim); }
-  .init-name { flex: 1; font-size: 13px; font-weight: 500; }
-  .init-meta { font-size: 11px; color: var(--text-muted); text-align: right; white-space: nowrap; }
-  .init-reduction { font-size: 13px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+  .init-name { flex: 1; font-size: 12px; font-weight: 500; min-width: 200px; }
+  .init-meta { font-size: 10px; color: var(--text-muted); text-align: right; white-space: nowrap; }
+  .init-reduction { font-size: 12px; font-weight: 700; color: var(--accent); white-space: nowrap; }
 
   /* Analyze */
   .analyze-section { margin-top: 32px; }
@@ -160,7 +215,7 @@
   .analysis-output p { margin-bottom: 10px; color: var(--text); }
 
   /* Legend */
-  .legend { display: flex; gap: 20px; margin-bottom: 16px; }
+  .legend { display: flex; gap: 20px; margin-bottom: 16px; flex-wrap: wrap; }
   .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
   .legend-swatch { width: 12px; height: 4px; border-radius: 2px; }
 
@@ -168,11 +223,16 @@
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 
   /* Responsive */
-  @media (max-width: 900px) {
+  @media (max-width: 1100px) {
+    .portco-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
+    .risk-esg-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 768px) {
     .portco-grid { grid-template-columns: 1fr; }
     .hero-row { grid-template-columns: repeat(2, 1fr); }
     .two-col { grid-template-columns: 1fr; }
-    .main { padding: 20px; }
+    .main { padding: 16px; }
+    .header { padding: 16px 20px; }
   }
 </style>
 </head>
@@ -180,9 +240,10 @@
 
 <div class="header">
   <div class="header-left">
-    <div class="logo">Northwood <span>Emissions Tracker</span></div>
+    <div class="logo">Northwood <span>Climate Tracker</span></div>
     <div class="header-tag">Kith Climate</div>
   </div>
+  <div class="header-right">10 Portfolio Companies · Fund I + Fund II</div>
 </div>
 
 <div class="main">
@@ -192,7 +253,7 @@
 
     <div class="chart-panel">
       <h3>Portfolio Emissions Trajectory</h3>
-      <p class="chart-sub">Quarterly actuals vs. SBTi-guided 1.5&deg;C reduction pathway (42% by 2030)</p>
+      <p class="chart-sub">Quarterly actuals vs. SBTi-guided 1.5&deg;C reduction pathway (42% by 2030) · 10 companies</p>
       <div class="legend">
         <div class="legend-item"><div class="legend-swatch" style="background:var(--scope1)"></div>Scope 1 (Actual)</div>
         <div class="legend-item"><div class="legend-swatch" style="background:var(--scope2)"></div>Scope 2 (Actual)</div>
@@ -217,8 +278,12 @@
 
     <div class="hero-row" id="detailHero"></div>
 
-    <div class="chart-panel">
-      <h3 id="detailChartTitle">Emissions Trajectory</h3>
+    <div class="section-label">Risk & ESG Profile</div>
+    <div id="riskEsgPanel"></div>
+
+    <div class="section-label" style="margin-top:28px">Emissions Trajectory</div>
+    <div class="chart-panel" style="margin-bottom:20px">
+      <h3 id="detailChartTitle">Quarterly Emissions vs. Target</h3>
       <p class="chart-sub" id="detailChartSub"></p>
       <div class="legend">
         <div class="legend-item"><div class="legend-swatch" style="background:var(--scope1)"></div>Scope 1 (Actual)</div>
@@ -251,10 +316,10 @@
     <div class="analyze-section">
       <button class="analyze-btn" id="analyzeBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
-        Analyze Emissions
+        Analyze Company
       </button>
       <div class="analysis-output" id="analysisOutput">
-        <h4>Emissions Analysis</h4>
+        <h4>Climate & Risk Analysis</h4>
         <div id="analysisContent"></div>
       </div>
     </div>
@@ -273,6 +338,7 @@
     document.getElementById('detailView').classList.add('active');
     document.getElementById('analysisOutput').classList.remove('visible');
     renderDetail(slug);
+    window.scrollTo(0, 0);
   };
 
   window.showPortfolio = () => {
@@ -281,6 +347,7 @@
     document.getElementById('portfolioView').style.display = '';
     document.getElementById('analysisOutput').classList.remove('visible');
     renderPortfolio();
+    window.scrollTo(0, 0);
   };
 
   window.runAnalysis = () => analyze(window.currentPortco);

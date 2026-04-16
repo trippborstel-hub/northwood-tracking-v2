@@ -1,6 +1,5 @@
-// agent.js — Claude API call for emissions analysis
-// API key is stored in the user's browser (localStorage), never in the code
-import { PORTCOS, TRAJECTORY, FACILITIES, SCOPE1_SOURCES, INITIATIVES } from './data.js';
+// agent.js — Claude API: holistic climate + risk + ESG analysis
+import { PORTCOS, TRAJECTORY, FACILITIES, SCOPE1_SOURCES, INITIATIVES, RISK_SUMMARY, ESG_SCORES } from './data.js';
 
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const STORAGE_KEY = 'northwood_api_key';
@@ -19,7 +18,7 @@ function promptForKey() {
         <div style="background:#1a1d27;border:1px solid #2e3345;border-radius:12px;padding:32px;max-width:480px;width:90%">
           <h3 style="color:#fff;font-size:16px;margin-bottom:8px">Connect to Claude</h3>
           <p style="color:#8b8fa3;font-size:13px;line-height:1.6;margin-bottom:20px">
-            The Analyze button uses the Claude API to generate an emissions analysis.
+            The Analyze button uses the Claude API to generate a holistic climate analysis.
             Paste your Anthropic API key below — it's saved in your browser only, never sent to GitHub.
           </p>
           <p style="color:#5a5e72;font-size:11px;margin-bottom:16px">
@@ -63,9 +62,11 @@ export async function analyze(slug) {
 
   const p = PORTCOS[slug];
   const t = TRAJECTORY[slug];
-  const facs = FACILITIES[slug];
+  const facs = FACILITIES[slug] || [];
   const sources = SCOPE1_SOURCES[slug];
   const inits = INITIATIVES[slug];
+  const risk = RISK_SUMMARY[slug];
+  const esg = ESG_SCORES[slug];
   if (!p || !t) return;
 
   // Compute key metrics
@@ -77,12 +78,14 @@ export async function analyze(slug) {
   const pctFromBase = ((baseYear - ltm) / baseYear * 100).toFixed(1);
   const intensity = (ltm / p.revenue).toFixed(1);
 
-  // Build facility summary
-  const facSummary = facs.sort((a, b) => b.total - a.total).slice(0, 5)
-    .map(f => `  ${f.name} (${f.city}, ${f.state}): ${f.total} tCO2e — ${f.topSource}`)
-    .join('\n');
+  // Facility summary
+  const facSummary = facs.length > 0
+    ? facs.sort((a, b) => b.total - a.total).slice(0, 5)
+        .map(f => `  ${f.name} (${f.city}, ${f.state}): ${f.total} tCO2e — ${f.topSource}`)
+        .join('\n')
+    : '  Facility-level detail not available for this company';
 
-  // Build initiative summary
+  // Initiative summary
   const initSummary = inits.map(i =>
     `  [${i.status.replace('_', ' ').toUpperCase()}] ${i.name}: -${i.estReduction} tCO2e, ${i.category}, ${i.startDate}${i.capex ? `, $${i.capex}K capex` : ''}`
   ).join('\n');
@@ -95,17 +98,41 @@ export async function analyze(slug) {
     `  ${q.q}: Scope 1 = ${q.scope1}, Scope 2 = ${q.scope2}, Total = ${q.scope1 + q.scope2}`
   ).join('\n');
 
+  // Risk summary
+  const vectors = risk.transition.vectors;
+  const riskSummary = `PHYSICAL RISK:
+  Level: ${risk.physical.level}
+  Water Stress Score: ${risk.physical.waterScore}/100 (WRI Aqueduct 4.0)
+  Heat Stress Score: ${risk.physical.heatScore} (CMIP6 baseline days >35C)
+  EV-at-Risk: $${risk.physical.evAtRisk}M
+
+TRANSITION RISK:
+  Overall: ${risk.transition.overall}
+  Customer ESG Pressure: ${vectors.customerESG}/5
+  Input / Supply Cost: ${vectors.inputSupply}/5
+  Capex Cycle Cliff: ${vectors.capexCycle}/5
+  Regulatory Exposure: ${vectors.regulatory}/5
+  Exit / Refi Readiness: ${vectors.exitRefi}/5
+  Top Risk: ${risk.transition.topRisk}`;
+
+  // ESG summary
+  const esgSummary = `ESG SCORECARD (McKinsey 8-Dimension):
+  Composite Score: ${esg.composite}/5.0 (${esg.riskLevel} Risk)
+  E1 Physical Climate Risk: ${esg.e1}/5 | E2 Transition Risk: ${esg.e2}/5 | E3 Environmental Liability: ${esg.e3}/5
+  S1 Labor & Safety: ${esg.s1}/5 | S2 Workforce: ${esg.s2}/5 | S3 Community: ${esg.s3}/5
+  G1 Board Oversight: ${esg.g1}/5 | G2 Data & Cyber: ${esg.g2}/5`;
+
   btn.disabled = true;
   btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><path d="M12 2a10 10 0 1 0 10 10"/></svg> Analyzing...`;
   output.classList.add('visible');
-  content.innerHTML = '<p style="color:#8b8fa3;font-style:italic">Analyzing emissions trajectory and reduction plan...</p>';
+  content.innerHTML = '<p style="color:#8b8fa3;font-style:italic">Analyzing emissions, risk profile, and ESG position...</p>';
 
-  const prompt = `You are a climate-focused PE analyst at Kith Consulting, writing an emissions analysis for the investment committee at Northwood Capital Partners.
+  const prompt = `You are a climate-focused PE analyst at Kith Consulting, writing a holistic climate and risk analysis for the investment committee at Northwood Capital Partners.
 
 Company: ${p.name}
 Sector: ${p.sector} | Fund: ${p.fund} | Status: ${p.status}
-Facilities: ${p.facilities} | Data Grade: ${p.dataGrade} (${p.dataNote})
-Revenue: $${p.revenue}M LTM
+Revenue: $${p.revenue}M | EBITDA: $${p.ebitda}M | Margin: ${p.margin}% | Leverage: ${p.leverage}x | MOIC: ${p.moic}x
+Facilities: ${p.facilities} | Employees: ${p.employees} | Data Grade: ${p.dataGrade} (${p.dataNote})
 
 EMISSIONS OVERVIEW:
 - Base year (${p.baseYear}) total: ${baseYear.toLocaleString()} tCO2e
@@ -124,18 +151,23 @@ ${sourceSummary}
 TOP FACILITIES BY EMISSIONS:
 ${facSummary}
 
+${riskSummary}
+
+${esgSummary}
+
 REDUCTION INITIATIVES:
 ${initSummary}
 
-Write a concise emissions analysis (3-4 paragraphs) for Sarah Mitchell, Northwood's COO. She is not a climate expert but understands PE operating metrics.
+Write a concise climate and risk analysis (4-5 paragraphs) for Sarah Mitchell, Northwood's COO. She is not a climate expert but understands PE operating metrics.
 
 Structure:
-1. Trajectory assessment — is this company on track to hit its 2030 target? What does the trend show? Lead with the answer.
-2. What's driving emissions — which facilities, scopes, and sources are the biggest contributors? What's moving the needle (up or down)?
-3. Reduction plan assessment — are the planned initiatives sufficient to close the gap to target? What's working, what's stalled, what's missing?
-4. Recommendation — one or two specific actions to flag for the IC. Be direct. Connect to value (cost savings, exit positioning, risk reduction).
+1. **Headline verdict** — Is this company on track? One sentence that leads with the answer and the most important number.
+2. **Emissions trajectory** — What does the trend show? Are planned reductions sufficient to close the gap? What's the biggest driver?
+3. **Risk exposure** — What are the material physical and transition risks? Connect to financial impact (EV-at-risk, EBITDA impact, exit readiness). If transition risk is Critical or High, lead with why.
+4. **ESG position** — Where is this company strong and weak on ESG? Flag any dimensions scored 4+ as action items.
+5. **What to do this quarter** — 2-3 specific, prioritized actions for the IC. Connect each to value (cost savings, exit multiple protection, regulatory compliance, risk reduction). Be direct about what's urgent vs. what can wait.
 
-Tone: Direct, analytical, no hedging. Use plain English, not ESG jargon. Reference specific numbers from the data.`;
+Tone: Direct, analytical, no hedging. Use plain English, not ESG jargon. Reference specific numbers. If the company status is "Exit Prep" emphasize exit-readiness implications. If "100-Day" focus on what to lock in early.`;
 
   try {
     const response = await fetch(API_URL, {
@@ -148,7 +180,7 @@ Tone: Direct, analytical, no hedging. Use plain English, not ESG jargon. Referen
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }]
       })
     });
@@ -173,5 +205,5 @@ Tone: Direct, analytical, no hedging. Use plain English, not ESG jargon. Referen
   }
 
   btn.disabled = false;
-  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg> Analyze Emissions`;
+  btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg> Analyze Company`;
 }

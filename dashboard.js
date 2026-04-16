@@ -1,5 +1,5 @@
-// dashboard.js — Emissions-focused portfolio + detail rendering
-import { PORTCOS, FACILITIES, TRAJECTORY, SCOPE1_SOURCES, INITIATIVES } from './data.js';
+// dashboard.js — Full portfolio tracker with emissions, risk, ESG, and initiatives
+import { PORTCOS, FACILITIES, TRAJECTORY, SCOPE1_SOURCES, INITIATIVES, RISK_SUMMARY, ESG_SCORES } from './data.js';
 
 const SCOPE1_COLOR = '#e8724c';
 const SCOPE2_COLOR = '#58a6ff';
@@ -12,7 +12,6 @@ let sourceChart = null;
 // ─── Helpers ───
 
 function annualize(quarters) {
-  // Sum the most recent 4 actual quarters
   const actuals = quarters.filter(q => q.actual);
   const recent = actuals.slice(-4);
   return recent.reduce((s, q) => s + q.scope1 + q.scope2, 0);
@@ -24,7 +23,6 @@ function latestActual(quarters) {
 }
 
 function targetQuarterly(baseTotal, targetTotal, quarters) {
-  // Linear interpolation from base year to target year
   const baseQ = baseTotal / 4;
   const targetQ = targetTotal / 4;
   const totalQs = quarters.length;
@@ -37,8 +35,7 @@ function ragForTrajectory(slug) {
   const ltm = annualize(t.quarters);
   const targetAnnual = t.target2030;
   const baseAnnual = t.baseYearTotal;
-  // How far along the reduction path should we be? (linear, proportional to time elapsed)
-  const yearsElapsed = 1.5; // mid-2025 relative to 2024 base
+  const yearsElapsed = 1.5;
   const totalYears = p.targetYear - p.baseYear;
   const expectedReduction = (baseAnnual - targetAnnual) * (yearsElapsed / totalYears);
   const expectedNow = baseAnnual - expectedReduction;
@@ -48,48 +45,76 @@ function ragForTrajectory(slug) {
   return 'red';
 }
 
+function riskColor(level) {
+  const map = { 'Critical': 'red', 'High': 'red', 'Elevated': 'yellow', 'Moderate': 'yellow', 'Low': 'green', 'Tailwind': 'green' };
+  return map[level] || 'yellow';
+}
+
+function physicalRiskColor(level) {
+  const map = { 'High': 'red', 'Medium': 'yellow', 'Low': 'green' };
+  return map[level] || 'yellow';
+}
+
+function esgColor(composite) {
+  if (composite <= 2.0) return 'green';
+  if (composite <= 3.0) return 'yellow';
+  return 'red';
+}
+
+function gradeColor(grade) {
+  if (grade === 'A') return 'green';
+  if (grade === 'B') return 'yellow';
+  return 'red';
+}
+
 // ─── Portfolio View ───
 
 export function renderPortfolio() {
-  // Aggregate portfolio totals
-  let totalScope1 = 0, totalScope2 = 0, totalBase = 0, totalTarget = 0;
   const slugs = Object.keys(PORTCOS);
+  let totalBase = 0, totalTarget = 0, totalLTM = 0;
+  let totalRevenue = 0, totalEbitda = 0;
+  let totalInits = 0, inProgress = 0;
 
   for (const slug of slugs) {
     const t = TRAJECTORY[slug];
-    const latest = latestActual(t.quarters);
-    totalScope1 += latest.scope1;
-    totalScope2 += latest.scope2;
+    const p = PORTCOS[slug];
     totalBase += t.baseYearTotal;
     totalTarget += t.target2030;
+    totalLTM += annualize(t.quarters);
+    totalRevenue += p.revenue;
+    totalEbitda += p.ebitda;
+    totalInits += INITIATIVES[slug].length;
+    inProgress += INITIATIVES[slug].filter(i => i.status === 'in_progress').length;
   }
 
-  const totalLTM = slugs.reduce((s, slug) => s + annualize(TRAJECTORY[slug].quarters), 0);
-  const totalInitiatives = slugs.reduce((s, slug) => s + INITIATIVES[slug].length, 0);
-  const inProgress = slugs.reduce((s, slug) => s + INITIATIVES[slug].filter(i => i.status === 'in_progress').length, 0);
   const pctReduction = ((totalBase - totalLTM) / totalBase * 100);
+  const portfolioIntensity = (totalLTM / totalRevenue).toFixed(1);
+
+  // Count risk levels
+  const criticalHigh = slugs.filter(s => ['Critical', 'High'].includes(RISK_SUMMARY[s].transition.overall)).length;
+  const avgESG = (slugs.reduce((s, slug) => s + ESG_SCORES[slug].composite, 0) / slugs.length).toFixed(1);
 
   // Hero cards
   document.getElementById('heroRow').innerHTML = `
     <div class="hero-card">
       <div class="hero-label">Portfolio Emissions (LTM)</div>
       <div class="hero-value">${totalLTM.toLocaleString()}</div>
-      <div class="hero-sub">tCO2e &middot; Scope 1 + 2</div>
+      <div class="hero-sub">tCO2e · Scope 1 + 2 · ${slugs.length} companies</div>
     </div>
     <div class="hero-card">
       <div class="hero-label">vs. Base Year</div>
       <div class="hero-value" style="color:${pctReduction > 0 ? 'var(--green)' : 'var(--red)'}">${pctReduction > 0 ? '' : '+'}${pctReduction.toFixed(1)}%</div>
-      <div class="hero-sub">${totalBase.toLocaleString()} tCO2e (${PORTCOS.meridian.baseYear})</div>
+      <div class="hero-sub">${totalBase.toLocaleString()} tCO2e (2024) · ${portfolioIntensity} tCO2e/$M</div>
     </div>
     <div class="hero-card">
-      <div class="hero-label">2030 Target</div>
-      <div class="hero-value">${totalTarget.toLocaleString()}</div>
-      <div class="hero-sub">tCO2e &middot; 42% reduction</div>
+      <div class="hero-label">Transition Risk</div>
+      <div class="hero-value" style="color:${criticalHigh > 2 ? 'var(--red)' : 'var(--yellow)'}">${criticalHigh}</div>
+      <div class="hero-sub">companies at Critical / High risk</div>
     </div>
     <div class="hero-card">
-      <div class="hero-label">Active Initiatives</div>
-      <div class="hero-value">${inProgress} <span style="font-size:14px;color:var(--text-muted)">/ ${totalInitiatives}</span></div>
-      <div class="hero-sub">${inProgress} in progress</div>
+      <div class="hero-label">ESG Composite</div>
+      <div class="hero-value" style="color:var(--${esgColor(parseFloat(avgESG))})">${avgESG}</div>
+      <div class="hero-sub">portfolio avg · ${inProgress} initiatives in progress</div>
     </div>
   `;
 
@@ -101,12 +126,13 @@ export function renderPortfolio() {
   grid.innerHTML = slugs.map(slug => {
     const p = PORTCOS[slug];
     const t = TRAJECTORY[slug];
+    const risk = RISK_SUMMARY[slug];
+    const esg = ESG_SCORES[slug];
     const ltm = annualize(t.quarters);
     const latest = latestActual(t.quarters);
     const rag = ragForTrajectory(slug);
     const ragLabel = rag === 'green' ? 'On Track' : rag === 'yellow' ? 'Watch' : 'Off Track';
     const s1Pct = latest.scope1 / (latest.scope1 + latest.scope2) * 100;
-    const pctDone = ((t.baseYearTotal - ltm) / (t.baseYearTotal - t.target2030) * 100);
     const intensity = (ltm / p.revenue).toFixed(1);
 
     return `
@@ -114,41 +140,41 @@ export function renderPortfolio() {
       <div class="card-top">
         <div>
           <div class="card-name">${p.name}</div>
-          <div class="card-sector">${p.sector} &middot; ${p.status}</div>
+          <div class="card-sector">${p.sector} · ${p.fund} · ${p.status}</div>
         </div>
         <span class="card-badge badge-${rag}">${ragLabel}</span>
       </div>
-      <div class="card-emissions">
-        <div>
-          <div class="card-metric-label">LTM Emissions</div>
+      <div class="card-metrics-row">
+        <div class="card-metric">
+          <div class="card-metric-label">LTM</div>
           <div class="card-metric-value">${ltm.toLocaleString()}</div>
         </div>
-        <div>
+        <div class="card-metric">
           <div class="card-metric-label">Intensity</div>
-          <div class="card-metric-value">${intensity} <span style="font-size:11px;color:var(--text-muted)">tCO2e/$M</span></div>
+          <div class="card-metric-value">${intensity}</div>
         </div>
-        <div>
-          <div class="card-metric-label scope1-color">Scope 1</div>
-          <div class="card-metric-value scope1-color">${(latest.scope1 * 4).toLocaleString()}</div>
+        <div class="card-metric">
+          <div class="card-metric-label">ESG</div>
+          <div class="card-metric-value" style="color:var(--${esgColor(esg.composite)})">${esg.composite}</div>
         </div>
-        <div>
-          <div class="card-metric-label scope2-color">Scope 2</div>
-          <div class="card-metric-value scope2-color">${(latest.scope2 * 4).toLocaleString()}</div>
+        <div class="card-metric">
+          <div class="card-metric-label">Data</div>
+          <div class="card-metric-value" style="color:var(--${gradeColor(p.dataGrade)})">${p.dataGrade}</div>
         </div>
+      </div>
+      <div class="card-risk-row">
+        <span class="risk-pill pill-${physicalRiskColor(risk.physical.level)}">Phys: ${risk.physical.level}</span>
+        <span class="risk-pill pill-${riskColor(risk.transition.overall)}">Trans: ${risk.transition.overall}</span>
       </div>
       <div class="card-bar">
         <div class="card-bar-label">
-          <span>Scope 1 / Scope 2 split</span>
+          <span>S1 / S2</span>
           <span>${s1Pct.toFixed(0)}% / ${(100 - s1Pct).toFixed(0)}%</span>
         </div>
         <div class="card-bar-track">
           <div class="card-bar-s1" style="width:${s1Pct}%"></div>
           <div class="card-bar-s2" style="width:${100 - s1Pct}%"></div>
         </div>
-      </div>
-      <div class="card-target">
-        <div class="card-target-dot" style="background:var(--${rag})"></div>
-        ${pctDone > 0 ? `${pctDone.toFixed(0)}% toward 2030 target` : 'Emissions above base year'}
       </div>
     </div>`;
   }).join('');
@@ -158,7 +184,6 @@ function renderPortfolioGapChart(slugs) {
   const canvas = document.getElementById('portfolioGapChart');
   if (portfolioChart) portfolioChart.destroy();
 
-  // Aggregate all portco quarters
   const allQuarters = TRAJECTORY[slugs[0]].quarters.map(q => q.q);
   const s1Actuals = [], s2Actuals = [], s1Forecasts = [], s2Forecasts = [], targets = [];
 
@@ -167,19 +192,16 @@ function renderPortfolioGapChart(slugs) {
   const targetLine = targetQuarterly(totalBase, totalTarget, allQuarters);
 
   allQuarters.forEach((q, i) => {
-    let s1 = 0, s2 = 0;
-    let isActual = true;
+    let s1 = 0, s2 = 0, isActual = true;
     slugs.forEach(slug => {
       const qd = TRAJECTORY[slug].quarters[i];
-      s1 += qd.scope1;
-      s2 += qd.scope2;
+      s1 += qd.scope1; s2 += qd.scope2;
       if (!qd.actual) isActual = false;
     });
     if (isActual) {
       s1Actuals.push(s1); s2Actuals.push(s2);
       s1Forecasts.push(null); s2Forecasts.push(null);
     } else {
-      // Bridge: repeat last actual in forecast for continuity
       if (s1Actuals.length > 0 && s1Forecasts.filter(v => v !== null).length === 0) {
         s1Forecasts[s1Actuals.length - 1] = s1Actuals[s1Actuals.length - 1];
         s2Forecasts[s2Actuals.length - 1] = s2Actuals[s2Actuals.length - 1];
@@ -198,21 +220,22 @@ function renderPortfolioGapChart(slugs) {
 export function renderDetail(slug) {
   const p = PORTCOS[slug];
   const t = TRAJECTORY[slug];
-  const facs = FACILITIES[slug];
+  const facs = FACILITIES[slug] || [];
   const sources = SCOPE1_SOURCES[slug];
   const inits = INITIATIVES[slug];
+  const risk = RISK_SUMMARY[slug];
+  const esg = ESG_SCORES[slug];
 
   const ltm = annualize(t.quarters);
-  const latest = latestActual(t.quarters);
-  const rag = ragForTrajectory(slug);
   const pctFromBase = ((t.baseYearTotal - ltm) / t.baseYearTotal * 100);
   const intensity = (ltm / p.revenue).toFixed(1);
-  const pctToTarget = ((t.baseYearTotal - ltm) / (t.baseYearTotal - t.target2030) * 100);
   const plannedReduction = inits.reduce((s, i) => s + i.estReduction, 0);
 
   document.getElementById('detailTitle').textContent = p.name;
-  document.getElementById('detailMeta').textContent =
-    `${p.sector} · ${p.fund} · ${p.facilities} facilities · Data Grade ${p.dataGrade} (${p.dataNote})`;
+  document.getElementById('detailMeta').innerHTML =
+    `${p.sector} · ${p.fund} · ${p.status} · ${p.facilities} facilities · $${p.revenue}M rev · $${p.ebitda}M EBITDA · ${p.moic}x MOIC` +
+    `<span class="grade-badge grade-${p.dataGrade.toLowerCase()}">Grade ${p.dataGrade}</span>` +
+    `<span class="grade-note">${p.dataNote}</span>`;
   document.getElementById('detailChartSub').textContent =
     `Base year ${p.baseYear}: ${t.baseYearTotal.toLocaleString()} tCO2e → Target ${p.targetYear}: ${t.target2030.toLocaleString()} tCO2e (${p.targetReduction}% reduction)`;
 
@@ -221,7 +244,7 @@ export function renderDetail(slug) {
     <div class="hero-card">
       <div class="hero-label">LTM Emissions</div>
       <div class="hero-value">${ltm.toLocaleString()}</div>
-      <div class="hero-sub">tCO2e &middot; Scope 1 + 2</div>
+      <div class="hero-sub">tCO2e · Scope 1 + 2</div>
     </div>
     <div class="hero-card">
       <div class="hero-label">vs. Base Year</div>
@@ -240,6 +263,59 @@ export function renderDetail(slug) {
     </div>
   `;
 
+  // Risk + ESG summary panel
+  const riskPanel = document.getElementById('riskEsgPanel');
+  if (riskPanel) {
+    const vectors = risk.transition.vectors;
+    const vectorLabels = { customerESG: 'Customer ESG', inputSupply: 'Input / Supply', capexCycle: 'Capex Cycle', regulatory: 'Regulatory', exitRefi: 'Exit / Refi' };
+    const esgLabels = { e1: 'Physical Risk', e2: 'Transition Risk', e3: 'Env. Liability', s1: 'Labor & Safety', s2: 'Workforce', s3: 'Community', g1: 'Board Oversight', g2: 'Data & Cyber' };
+
+    riskPanel.innerHTML = `
+      <div class="risk-esg-grid">
+        <div class="risk-panel">
+          <h4>Risk Profile</h4>
+          <div class="risk-summary-row">
+            <div class="risk-summary-item">
+              <div class="risk-summary-label">Physical Risk</div>
+              <span class="risk-pill pill-${physicalRiskColor(risk.physical.level)}">${risk.physical.level}</span>
+              <div class="risk-detail-line">Water: ${risk.physical.waterScore} · Heat: ${risk.physical.heatScore} · EV@Risk: $${risk.physical.evAtRisk}M</div>
+            </div>
+            <div class="risk-summary-item">
+              <div class="risk-summary-label">Transition Risk</div>
+              <span class="risk-pill pill-${riskColor(risk.transition.overall)}">${risk.transition.overall}</span>
+              <div class="risk-detail-line">${risk.transition.topRisk}</div>
+            </div>
+          </div>
+          <div class="vector-bars">
+            ${Object.entries(vectors).map(([key, val]) => `
+              <div class="vector-bar-row">
+                <span class="vector-label">${vectorLabels[key]}</span>
+                <div class="vector-bar-track">
+                  <div class="vector-bar-fill" style="width:${val * 20}%;background:var(--${val >= 4 ? 'red' : val >= 3 ? 'yellow' : 'green'})"></div>
+                </div>
+                <span class="vector-score">${val}/5</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="esg-panel">
+          <h4>ESG Scorecard</h4>
+          <div class="esg-composite">
+            <span class="esg-composite-value" style="color:var(--${esgColor(esg.composite)})">${esg.composite}</span>
+            <span class="esg-composite-label">${esg.riskLevel} Risk</span>
+          </div>
+          <div class="esg-dimension-grid">
+            ${Object.entries(esgLabels).map(([key, label]) => {
+              const val = esg[key];
+              const c = val >= 4 ? 'red' : val >= 3 ? 'yellow' : 'green';
+              return `<div class="esg-dim"><span class="esg-dim-label">${label}</span><span class="esg-dim-score" style="color:var(--${c})">${val}</span></div>`;
+            }).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   // Gap chart
   renderDetailGapChart(slug);
 
@@ -248,7 +324,7 @@ export function renderDetail(slug) {
 
   // Facility table
   const totalFac = facs.reduce((s, f) => s + f.total, 0);
-  document.getElementById('facilityTable').innerHTML = `
+  document.getElementById('facilityTable').innerHTML = totalFac > 0 ? `
     <thead><tr>
       <th>Facility</th><th>Location</th><th class="r">Scope 1</th><th class="r">Scope 2</th><th class="r">Total</th><th class="r">Share</th>
     </tr></thead>
@@ -263,19 +339,21 @@ export function renderDetail(slug) {
         <td class="r"><span class="pct-bar" style="width:${share}px;background:var(--accent)"></span>${share.toFixed(0)}%</td>
       </tr>`;
     }).join('')}</tbody>
-  `;
+  ` : `<tbody><tr><td colspan="6" style="padding:20px;color:var(--text-dim);text-align:center">Facility-level data available in full climate dashboard</td></tr></tbody>`;
 
   // Initiatives
   const statusOrder = { in_progress: 0, planned: 1, complete: 2 };
   const sorted = [...inits].sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
-  document.getElementById('initList').innerHTML = sorted.map(i => `
+  document.getElementById('initList').innerHTML = sorted.map(i => {
+    const abatementCost = i.capex > 0 && i.estReduction > 0 ? `$${Math.round(i.capex * 1000 / i.estReduction)}/tCO2e` : i.capex === 0 ? '$0/tCO2e' : '';
+    return `
     <div class="init-row">
       <span class="init-status status-${i.status}">${i.status.replace('_', ' ')}</span>
       <span class="init-name">${i.name}</span>
-      <span class="init-meta">${i.category} &middot; ${i.startDate}${i.capex ? ` · $${i.capex}K` : ''}</span>
+      <span class="init-meta">${i.category} · ${i.startDate}${i.capex ? ` · $${i.capex}K` : ''}${abatementCost ? ` · ${abatementCost}` : ''}</span>
       <span class="init-reduction">-${i.estReduction} tCO2e</span>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function renderDetailGapChart(slug) {
@@ -348,69 +426,21 @@ function gapChartConfig(labels, s1Act, s2Act, s1Fore, s2Fore, targetLine) {
     data: {
       labels,
       datasets: [
-        {
-          label: 'Scope 1 (Actual)',
-          data: s1Act,
-          backgroundColor: SCOPE1_COLOR,
-          stack: 'actual',
-          borderRadius: 2,
-          barPercentage: 0.7,
-        },
-        {
-          label: 'Scope 2 (Actual)',
-          data: s2Act,
-          backgroundColor: SCOPE2_COLOR,
-          stack: 'actual',
-          borderRadius: 2,
-          barPercentage: 0.7,
-        },
-        {
-          label: 'Scope 1 (Forecast)',
-          data: s1Fore,
-          backgroundColor: SCOPE1_COLOR + '55',
-          stack: 'forecast',
-          borderRadius: 2,
-          barPercentage: 0.7,
-        },
-        {
-          label: 'Scope 2 (Forecast)',
-          data: s2Fore,
-          backgroundColor: SCOPE2_COLOR + '55',
-          stack: 'forecast',
-          borderRadius: 2,
-          barPercentage: 0.7,
-        },
-        {
-          label: 'Target Pathway',
-          data: targetLine,
-          type: 'line',
-          borderColor: TARGET_COLOR,
-          borderWidth: 2,
-          borderDash: [6, 4],
-          pointRadius: 0,
-          fill: false,
-          tension: 0.3,
-          order: 0,
-        }
+        { label: 'Scope 1 (Actual)', data: s1Act, backgroundColor: SCOPE1_COLOR, stack: 'actual', borderRadius: 2, barPercentage: 0.7 },
+        { label: 'Scope 2 (Actual)', data: s2Act, backgroundColor: SCOPE2_COLOR, stack: 'actual', borderRadius: 2, barPercentage: 0.7 },
+        { label: 'Scope 1 (Forecast)', data: s1Fore, backgroundColor: SCOPE1_COLOR + '55', stack: 'forecast', borderRadius: 2, barPercentage: 0.7 },
+        { label: 'Scope 2 (Forecast)', data: s2Fore, backgroundColor: SCOPE2_COLOR + '55', stack: 'forecast', borderRadius: 2, barPercentage: 0.7 },
+        { label: 'Target Pathway', data: targetLine, type: 'line', borderColor: TARGET_COLOR, borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false, tension: 0.3, order: 0 }
       ]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: true, maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
       scales: {
-        x: {
-          stacked: true,
-          ticks: { color: '#5a5e72', font: { size: 10 } },
-          grid: { display: false },
-        },
+        x: { stacked: true, ticks: { color: '#5a5e72', font: { size: 10 } }, grid: { display: false } },
         y: {
           stacked: true,
-          ticks: {
-            color: '#5a5e72',
-            font: { size: 10 },
-            callback: v => v.toLocaleString()
-          },
+          ticks: { color: '#5a5e72', font: { size: 10 }, callback: v => v.toLocaleString() },
           grid: { color: '#2e334522' },
           title: { display: true, text: 'tCO2e', color: '#5a5e72', font: { size: 10 } }
         }
@@ -418,17 +448,9 @@ function gapChartConfig(labels, s1Act, s2Act, s1Fore, s2Fore, targetLine) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1a1d27',
-          borderColor: '#2e3345',
-          borderWidth: 1,
-          titleColor: '#e2e4ea',
-          bodyColor: '#8b8fa3',
-          callbacks: {
-            label: (ctx) => {
-              if (ctx.raw === null) return null;
-              return `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} tCO2e`;
-            }
-          }
+          backgroundColor: '#1a1d27', borderColor: '#2e3345', borderWidth: 1,
+          titleColor: '#e2e4ea', bodyColor: '#8b8fa3',
+          callbacks: { label: (ctx) => ctx.raw === null ? null : `${ctx.dataset.label}: ${ctx.raw.toLocaleString()} tCO2e` }
         }
       }
     }
